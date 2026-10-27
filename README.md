@@ -1,11 +1,11 @@
 # 日報アプリ
 
-Laravel 10 で作成した日報管理アプリです。日報の作成・一覧表示・編集・削除ができ、作成者を記録して一覧に報告者名を表示します。
+Laravel 13 で作成した日報管理アプリです。日報の作成・一覧表示・編集・削除ができ、作成者を記録して一覧に報告者名を表示します。
 Laravel Fortify によるメールアドレス認証に対応しています。ログイン画面から新規登録またはログインできます。
 
 ## 動作環境
 
-- PHP 8.1 以上
+- PHP 8.3 以上
 - Docker Compose（Laravel Sail）
 - Node.js / npm（フロントエンドのアセットをローカルでビルドする場合）
 
@@ -32,5 +32,5 @@ cp .env.example .env
 ## テスト
 
 ```bash
-./vendor/bin/sail artisan test
+./vendor/bin/sail php vendor/bin/phpunit
 ```

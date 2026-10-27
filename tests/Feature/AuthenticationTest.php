@@ -29,8 +29,8 @@ class AuthenticationTest extends TestCase
     {
         $response = $this->post(route('register.store'), [
             'email' => 'new-user@example.com',
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
+            'password' => ' password123 ',
+            'password_confirmation' => ' password123 ',
         ]);
 
         $response->assertRedirect(route('daily-reports.index'));
@@ -39,7 +39,7 @@ class AuthenticationTest extends TestCase
 
         $this->assertAuthenticatedAs($user);
         $this->assertSame('new-user', $user->name);
-        $this->assertTrue(Hash::check('password123', $user->password));
+        $this->assertTrue(Hash::check(' password123 ', $user->password));
     }
 
     public function test_registration_validation_errors_are_in_japanese(): void
@@ -169,5 +169,12 @@ class AuthenticationTest extends TestCase
     {
         $this->get(route('daily-reports.index'))
             ->assertRedirect(route('login'));
+    }
+
+    public function test_authenticated_users_are_redirected_from_guest_pages_to_daily_reports(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('login'))
+            ->assertRedirect('/daily-reports');
     }
 }
