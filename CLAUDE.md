@@ -2,8 +2,8 @@
 
 ## プロジェクト概要
 
-- Laravel 10 を使った PHP Web アプリケーションです。
-- PHP の要件は `^8.1` です。
+- Laravel 13 を使った PHP Web アプリケーションです。
+- PHP の要件は `^8.3` です。
 - 画面は Blade、フロントエンドのアセットは JavaScript / CSS を Vite でビルドします。
 - データベースは MySQL を使用します。Docker Compose では MySQL 8.4 と Laravel Sail を利用します。
 
@@ -45,9 +45,6 @@ Tailwind CSS の初期導入時は、`tailwind.config.js` の `content` に Blad
 
 ```bash
 # Laravel / PHPUnit のテストを実行
-./vendor/bin/sail artisan test
-
-# PHPUnit を直接実行
 ./vendor/bin/sail php vendor/bin/phpunit
 
 # Laravel Pint で PHP コードのスタイルをチェック
@@ -97,7 +94,7 @@ phpMyAdmin は Sail の `phpmyadmin` サービスとして起動し、ホスト�
 
 ## 開発ルール
 
-- 開発環境のコマンドは Laravel Sail 経由で実行してください（例: `./vendor/bin/sail artisan test`）。
+- 開発環境のコマンドは Laravel Sail 経由で実行してください（例: `./vendor/bin/sail php vendor/bin/phpunit`）。
 - コミットメッセージは日本語で書いてください。
 - コード内のコメントは日本語で書いてください。
 - テストは PHPUnit で書き、Pest は使用しないでください。
