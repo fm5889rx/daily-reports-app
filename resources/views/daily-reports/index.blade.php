@@ -11,10 +11,17 @@
         <section class="rounded-xl bg-white p-6 shadow-lg sm:p-8">
             <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <h1 class="text-3xl font-bold tracking-tight">日報一覧</h1>
-                <a
-                    class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700"
-                    href="{{ route('daily-reports.create') }}"
-                >日報を新規作成</a>
+                <div class="flex items-center gap-4">
+                    <span class="text-sm text-slate-600">ログイン中: {{ auth()->user()->name }}</span>
+                    <a
+                        class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700"
+                        href="{{ route('daily-reports.create') }}"
+                    >日報を新規作成</a>
+                    <form action="{{ route('logout') }}" method="POST">
+                        @csrf
+                        <button class="font-medium text-slate-600 hover:text-slate-900" type="submit">ログアウト</button>
+                    </form>
+                </div>
             </div>
 
             @if (session('success'))
@@ -32,6 +39,7 @@
                                 <th class="px-4 py-3 font-medium">タイトル</th>
                                 <th class="px-4 py-3 font-medium">内容</th>
                                 <th class="px-4 py-3 font-medium">ステータス</th>
+                                <th class="px-4 py-3 font-medium">報告者</th>
                                 <th class="px-4 py-3 font-medium">操作</th>
                             </tr>
                         </thead>
@@ -42,21 +50,26 @@
                                     <td class="px-4 py-4 font-medium">{{ $dailyReport->title }}</td>
                                     <td class="max-w-sm px-4 py-4">{{ $dailyReport->content }}</td>
                                     <td class="whitespace-nowrap px-4 py-4">{{ $dailyReport->status === 'submitted' ? '提出済' : '下書き' }}</td>
+                                    <td class="whitespace-nowrap px-4 py-4">{{ $dailyReport->user?->name ?? '不明' }}</td>
                                     <td class="whitespace-nowrap px-4 py-4">
                                         <div class="flex items-center gap-3">
-                                            <a
-                                                class="font-medium text-indigo-600 hover:text-indigo-800"
-                                                href="{{ route('daily-reports.edit', $dailyReport) }}"
-                                            >編集</a>
-                                            <form
-                                                action="{{ route('daily-reports.destroy', $dailyReport) }}"
-                                                method="POST"
-                                                onsubmit="return confirm('この日報を削除してもよろしいですか？')"
-                                            >
-                                                @csrf
-                                                @method('DELETE')
-                                                <button class="font-medium text-red-600 hover:text-red-800" type="submit">削除</button>
-                                            </form>
+                                            @can('update', $dailyReport)
+                                                <a
+                                                    class="font-medium text-indigo-600 hover:text-indigo-800"
+                                                    href="{{ route('daily-reports.edit', $dailyReport) }}"
+                                                >編集</a>
+                                            @endcan
+                                            @can('delete', $dailyReport)
+                                                <form
+                                                    action="{{ route('daily-reports.destroy', $dailyReport) }}"
+                                                    method="POST"
+                                                    onsubmit="return confirm('この日報を削除してもよろしいですか？')"
+                                                >
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button class="font-medium text-red-600 hover:text-red-800" type="submit">削除</button>
+                                                </form>
+                                            @endcan
                                         </div>
                                     </td>
                                 </tr>

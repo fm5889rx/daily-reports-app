@@ -14,10 +14,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::redirect('/', '/daily-reports');
 
 Route::resource('daily-reports', DailyReportController::class)
     ->parameters(['daily-reports' => 'dailyReport'])
-    ->except(['show']);
+    ->except(['show'])
+    ->middleware('auth');

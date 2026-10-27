@@ -13,6 +13,7 @@ class DailyReportController extends Controller
     public function index(): View
     {
         $dailyReports = DailyReport::query()
+            ->with('user')
             ->orderByDesc('reported_at')
             ->orderByDesc('id')
             ->get();
@@ -29,7 +30,10 @@ class DailyReportController extends Controller
 
     public function store(StoreDailyReportRequest $request): RedirectResponse
     {
-        DailyReport::create($request->validated());
+        DailyReport::create([
+            ...$request->validated(),
+            'user_id' => $request->user()->id,
+        ]);
 
         return redirect()
             ->route('daily-reports.index')
@@ -38,6 +42,8 @@ class DailyReportController extends Controller
 
     public function edit(DailyReport $dailyReport): View
     {
+        $this->authorize('update', $dailyReport);
+
         return view('daily-reports.edit', compact('dailyReport'));
     }
 
@@ -45,6 +51,8 @@ class DailyReportController extends Controller
         UpdateDailyReportRequest $request,
         DailyReport $dailyReport
     ): RedirectResponse {
+        $this->authorize('update', $dailyReport);
+
         $dailyReport->update($request->validated());
 
         return redirect()
@@ -54,6 +62,8 @@ class DailyReportController extends Controller
 
     public function destroy(DailyReport $dailyReport): RedirectResponse
     {
+        $this->authorize('delete', $dailyReport);
+
         $dailyReport->delete();
 
         return redirect()

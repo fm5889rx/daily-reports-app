@@ -153,5 +153,8 @@ return [
         'title' => 'タイトル',
         'content' => '内容',
         'status' => 'ステータス',
+        'email' => 'メールアドレス',
+        'password' => 'パスワード',
+        'password_confirmation' => 'パスワード確認',
     ],
 ];

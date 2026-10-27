@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\DailyReport;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -10,9 +11,22 @@ class DailyReportControllerTest extends TestCase
 {
     use RefreshDatabase;
 
+    private User $user;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->user = User::factory()->create([
+            'name' => 'テストユーザー',
+        ]);
+        $this->actingAs($this->user);
+    }
+
     public function test_index_displays_daily_reports_and_create_link(): void
     {
         $dailyReport = DailyReport::create([
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-27',
             'title' => '作業報告',
             'content' => 'テスト内容を記録しました。',
@@ -25,8 +39,40 @@ class DailyReportControllerTest extends TestCase
             ->assertSee('作業報告')
             ->assertSee('テスト内容を記録しました。')
             ->assertSee('提出済')
+            ->assertSee('ログイン中: テストユーザー')
+            ->assertSee('報告者')
+            ->assertSee('テストユーザー')
             ->assertSee(route('daily-reports.create'))
             ->assertSee(route('daily-reports.edit', $dailyReport));
+    }
+
+    public function test_index_hides_edit_and_delete_actions_for_other_users_reports(): void
+    {
+        $ownReport = DailyReport::create([
+            'user_id' => $this->user->id,
+            'reported_at' => '2026-10-27',
+            'title' => '自分の日報',
+            'content' => '自分が作成した日報です。',
+            'status' => 'draft',
+        ]);
+        $otherUser = User::factory()->create(['name' => '別のユーザー']);
+        $otherReport = DailyReport::create([
+            'user_id' => $otherUser->id,
+            'reported_at' => '2026-10-26',
+            'title' => '他人の日報',
+            'content' => '別のユーザーが作成した日報です。',
+            'status' => 'submitted',
+        ]);
+
+        $response = $this->get(route('daily-reports.index'));
+
+        $response->assertOk()
+            ->assertSee(route('daily-reports.edit', $ownReport))
+            ->assertSee(route('daily-reports.destroy', $ownReport))
+            ->assertDontSee(route('daily-reports.edit', $otherReport))
+            ->assertDontSee(route('daily-reports.destroy', $otherReport))
+            ->assertSee('自分の日報')
+            ->assertSee('他人の日報');
     }
 
     public function test_create_form_has_status_options(): void
@@ -35,6 +81,8 @@ class DailyReportControllerTest extends TestCase
 
         $response->assertOk()
             ->assertSee('min-h-screen max-w-2xl flex-col justify-center', false)
+            ->assertSee('報告者')
+            ->assertSee('テストユーザー')
             ->assertSee('<select', false)
             ->assertSee('id="status"', false)
             ->assertSee('name="status"', false)
@@ -57,6 +105,7 @@ class DailyReportControllerTest extends TestCase
             ->assertSessionHas('success', '日報を作成しました。');
 
         $this->assertDatabaseHas('daily_reports', [
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-27',
             'title' => '作業報告',
             'status' => 'submitted',
@@ -88,6 +137,7 @@ class DailyReportControllerTest extends TestCase
     public function test_edit_form_shows_existing_values_and_status_options(): void
     {
         $dailyReport = DailyReport::create([
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-27',
             'title' => '編集対象',
             'content' => '編集前の内容を記録しています。',
@@ -97,6 +147,8 @@ class DailyReportControllerTest extends TestCase
         $response = $this->get(route('daily-reports.edit', $dailyReport));
 
         $response->assertOk()
+            ->assertSee('報告者')
+            ->assertSee('テストユーザー')
             ->assertSee('value="編集対象"', false)
             ->assertSee('<option value="submitted" selected', false)
             ->assertSee('>提出済</option>', false);
@@ -105,6 +157,7 @@ class DailyReportControllerTest extends TestCase
     public function test_update_changes_daily_report(): void
     {
         $dailyReport = DailyReport::create([
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-26',
             'title' => '変更前',
             'content' => '変更前の内容を記録しています。',
@@ -129,9 +182,44 @@ class DailyReportControllerTest extends TestCase
         ]);
     }
 
+    public function test_only_the_owner_can_edit_update_or_delete_a_daily_report(): void
+    {
+        $dailyReport = DailyReport::create([
+            'user_id' => $this->user->id,
+            'reported_at' => '2026-10-26',
+            'title' => '所有者の日報',
+            'content' => '所有者以外は変更できません。',
+            'status' => 'draft',
+        ]);
+
+        $this->actingAs(User::factory()->create());
+
+        $this->get(route('daily-reports.edit', $dailyReport))
+            ->assertForbidden();
+
+        $this->put(route('daily-reports.update', $dailyReport), [
+            'reported_at' => '2026-10-27',
+            'title' => '不正な変更',
+            'content' => '他のユーザーによる変更です。',
+            'status' => 'submitted',
+        ])->assertForbidden();
+
+        $this->delete(route('daily-reports.destroy', $dailyReport))
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('daily_reports', [
+            'id' => $dailyReport->id,
+            'user_id' => $this->user->id,
+            'title' => '所有者の日報',
+            'content' => '所有者以外は変更できません。',
+            'status' => 'draft',
+        ]);
+    }
+
     public function test_destroy_deletes_daily_report(): void
     {
         $dailyReport = DailyReport::create([
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-27',
             'title' => '削除対象',
             'content' => '削除される日報の内容です。',
@@ -148,6 +236,7 @@ class DailyReportControllerTest extends TestCase
     public function test_index_displays_confirmation_for_deleting_a_daily_report(): void
     {
         DailyReport::create([
+            'user_id' => $this->user->id,
             'reported_at' => '2026-10-27',
             'title' => '削除対象',
             'content' => '削除される日報の内容です。',
