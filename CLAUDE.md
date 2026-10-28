@@ -2,9 +2,9 @@
 
 ## プロジェクト概要
 
-- Laravel 13 を使った PHP Web アプリケーションです。
+- Laravel 13 の JSON API と Next.js 16 の Web フロントエンドで構成するアプリケーションです。
 - PHP の要件は `^8.3` です。
-- 画面は Blade、フロントエンドのアセットは JavaScript / CSS を Vite でビルドします。
+- 画面は `frontend/` の Next.js / React / TypeScript で構成します。Laravel Blade は画面描画には使用しません。
 - データベースは MySQL を使用します。Docker Compose では MySQL 8.4 と Laravel Sail を利用します。
 
 ## よく使うコマンド
@@ -15,19 +15,14 @@
 # Sail のアプリケーションコンテナを起動
 ./vendor/bin/sail up -d
 
-# JavaScript の依存パッケージをインストール（初回、または依存更新後）
-./vendor/bin/sail npm install
+# Next.js の依存パッケージをインストール
+./vendor/bin/sail npm --prefix frontend ci
 
-# Tailwind CSS の初期設定（新規導入時のみ）
-./vendor/bin/sail npm install --save-dev tailwindcss@^3.4.17 postcss autoprefixer
-./vendor/bin/sail npx tailwindcss init -p
-
-# Vite 開発サーバーを起動（ターミナルを開いたままにする）
-./vendor/bin/sail npm run dev -- --host 0.0.0.0
+# Next.js 開発サーバーを起動（ターミナルを開いたままにする）
+./vendor/bin/sail npm run dev
 ```
 
-初回は依存パッケージをインストールしてから開発サーバーを起動してください。Vite の開発サーバーはホストの `5173` 番ポートで利用します。フォーム画面を確認するときは、開発サーバーを起動したまま Laravel アプリの URL（通常は `http://localhost`）をブラウザーで開いてください。
-Tailwind CSS の初期導入時は、`tailwind.config.js` の `content` に Blade と JavaScript のパス（`./resources/**/*.blade.php`、`./resources/**/*.js`）を設定し、`resources/css/app.css` に Tailwind の `@tailwind` ディレクティブを記述してください。各 Blade レイアウトでは `@vite(['resources/css/app.css', 'resources/js/app.js'])` を読み込みます。
+開発時の Next.js は `http://localhost:3000` で利用できます。フロントエンドの `/api`・`/auth`・`/sanctum` リクエストは Next.js の開発プロキシから Laravel へ転送されます。
 
 ```bash
 # Sail 経由で Artisan コマンドを実行
@@ -37,7 +32,7 @@ Tailwind CSS の初期導入時は、`tailwind.config.js` の `content` に Blad
 ### ビルド
 
 ```bash
-# 本番向けアセットをビルド
+# Next.js を本番ビルド
 ./vendor/bin/sail npm run build
 ```
 
@@ -85,8 +80,10 @@ phpMyAdmin は Sail の `phpmyadmin` サービスとして起動し、ホスト�
 
 - `app/` — アプリケーションの PHP コード（コントローラー、モデル、ミドルウェア、プロバイダーなど）
 - `routes/` — Web / API ルート定義
-- `resources/views/` — Blade テンプレート
-- `resources/js/`, `resources/css/` — フロントエンドの JavaScript と CSS
+- `frontend/src/app/` — Next.js App Router の画面
+- `frontend/src/components/` — React UI コンポーネント
+- `frontend/src/lib/` — API クライアントなどの共有処理
+- `resources/views/` — 旧Bladeテンプレート（現行UIからは未使用）
 - `database/migrations/` — データベーススキーマの変更
 - `database/factories/`, `database/seeders/` — テストデータや初期データ
 - `tests/Feature/`, `tests/Unit/` — 機能テスト、ユニットテスト
