@@ -77,6 +77,9 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="mt-6">
+                    {{ $dailyReports->links() }}
+                </div>
             @endif
         </section>
     </main>

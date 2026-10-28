@@ -16,7 +16,7 @@ class DailyReportController extends Controller
             ->with('user')
             ->orderByDesc('reported_at')
             ->orderByDesc('id')
-            ->get();
+            ->paginate(5);
 
         return view('daily-reports.index', compact('dailyReports'));
     }

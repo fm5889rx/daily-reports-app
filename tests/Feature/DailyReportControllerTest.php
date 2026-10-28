@@ -46,6 +46,37 @@ class DailyReportControllerTest extends TestCase
             ->assertSee(route('daily-reports.edit', $dailyReport));
     }
 
+    public function test_index_paginates_daily_reports_five_per_page(): void
+    {
+        foreach (range(1, 12) as $number) {
+            DailyReport::create([
+                'user_id' => $this->user->id,
+                'reported_at' => sprintf('2026-10-%02d', $number),
+                'title' => "日報 {$number}",
+                'content' => "内容 {$number}",
+                'status' => 'submitted',
+            ]);
+        }
+
+        $firstPage = $this->get(route('daily-reports.index'));
+
+        $firstPage->assertOk()
+            ->assertSee('日報 12')
+            ->assertSee('日報 8')
+            ->assertDontSee('日報 7')
+            ->assertSee('page=2', false);
+        $this->assertCount(5, $firstPage->viewData('dailyReports'));
+        $this->assertSame(12, $firstPage->viewData('dailyReports')->total());
+
+        $secondPage = $this->get(route('daily-reports.index', ['page' => 2]));
+
+        $secondPage->assertOk()
+            ->assertSee('日報 7')
+            ->assertSee('日報 3')
+            ->assertDontSee('日報 2');
+        $this->assertCount(5, $secondPage->viewData('dailyReports'));
+    }
+
     public function test_index_hides_edit_and_delete_actions_for_other_users_reports(): void
     {
         $ownReport = DailyReport::create([
