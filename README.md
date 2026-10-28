@@ -5,7 +5,7 @@ Laravel Fortify によるメールアドレス認証に対応しています。�
 
 ## 動作環境
 
-- PHP 8.3 以上
+- PHP 8.5（ロック済み依存パッケージの要件）
 - Docker Compose（Laravel Sail）
 - Node.js / npm（フロントエンドのアセットをローカルでビルドする場合）
 
@@ -34,3 +34,35 @@ cp .env.example .env
 ```bash
 ./vendor/bin/sail php vendor/bin/phpunit
 ```
+
+## 本番環境へのデプロイ（Ver3 公開版）
+
+本番構成は Docker Compose を使用し、PHP-FPM、Nginx、MySQL を分離しています。Sail の `compose.yaml` は開発用として維持し、本番では `compose.production.yaml` を使用してください。Docker Engine と Docker Compose v2 が必要です。
+
+1. 本番サーバーで設定ファイルを作成し、アプリ URL、十分に長いランダムな DB パスワード、SMTP 設定を環境に合わせて設定します。`.env.production` は秘密情報を含むため、リポジトリへ登録しないでください。
+
+    ```bash
+    cp .env.production.example .env.production
+    chmod 600 .env.production
+    ```
+
+2. 本番用イメージをビルドし、アプリケーションキーを生成します。表示されたキーを `.env.production` の `APP_KEY` に設定し、以後のデプロイでも同じ値を維持してください。
+
+    ```bash
+    docker compose --env-file .env.production -f compose.production.yaml build
+    docker compose --env-file .env.production -f compose.production.yaml run --rm --no-deps --entrypoint php app artisan key:generate --show
+    ```
+
+3. データベースを起動してから、通常のマイグレーションを適用し、アプリを起動します。
+
+    ```bash
+    docker compose --env-file .env.production -f compose.production.yaml up -d mysql
+    docker compose --env-file .env.production -f compose.production.yaml run --rm app php artisan migrate --force
+    docker compose --env-file .env.production -f compose.production.yaml up -d
+    ```
+
+    本番データを消去する `migrate:fresh` は実行しないでください。更新時もイメージを再ビルドし、`migrate --force` を実行してからサービスを起動します。
+
+4. `APP_URL` には公開 URL を設定してください。Web コンテナは HTTP のみで待ち受けるため、インターネットへ直接公開せず、HTTPS を終端するリバースプロキシの背後で利用してください。`SESSION_SECURE_COOKIE=true` は HTTPS 環境向けです。
+
+MySQL のデータと Laravel のストレージは Docker named volume に保存されます。コンテナイメージを更新しても保持されますが、ボリュームはバックアップの代わりにはなりません。運用前に DB と必要なファイルのバックアップ／復元手順を用意してください。この Compose 構成のセッションとキャッシュはファイルベースで、単一アプリインスタンスを前提とします。複数台構成にする場合は共有可能なセッション／キャッシュストアと外部 DB を別途設定してください。
