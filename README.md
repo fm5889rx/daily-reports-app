@@ -1,13 +1,12 @@
 # 日報アプリ
 
-Laravel 13 で作成した日報管理アプリです。日報の作成・一覧表示・編集・削除ができ、作成者を記録して一覧に報告者名を表示します。
-Laravel Fortify によるメールアドレス認証に対応しています。ログイン画面から新規登録またはログインできます。
+Laravel 13 をバックエンドに、Next.js 16 をフロントエンドに使用した日報管理アプリです。日報の作成・一覧表示・編集・削除ができ、作成者を記録して一覧に報告者名を表示します。Laravel Fortify/Sanctum によるセッション認証を使用し、Next.js と Laravel API は本番環境で同一オリジンから利用します。
 
 ## 動作環境
 
-- PHP 8.5（ロック済み依存パッケージの要件）
+- PHP 8.5（Composer依存パッケージの要件）
+- Node.js 22 以上（Next.js 16 は Node.js 20.9 以上が必要）
 - Docker Compose（Laravel Sail）
-- Node.js / npm（フロントエンドのアセットをローカルでビルドする場合）
 
 ## セットアップ
 
@@ -21,13 +20,24 @@ cp .env.example .env
 ./vendor/bin/sail up -d
 ./vendor/bin/sail artisan key:generate
 ./vendor/bin/sail artisan migrate
-./vendor/bin/sail npm install
-./vendor/bin/sail npm run build
+./vendor/bin/sail npm --prefix frontend ci
+./vendor/bin/sail npm run dev
 ```
 
-アプリケーションは通常 `http://localhost` で利用できます。
+Next.js の開発画面は `http://localhost:3000`、Laravel API は Sail 内の Nginx 経由で利用されます。Next.js 開発サーバーは別ターミナルで起動したままにしてください。開発サーバーは認証・API・CSRF の各リクエストを Laravel へプロキシします。
 
-アカウントを作成する場合は、ログイン画面でメールアドレス、パスワード、パスワード確認を入力して「新規登録」を選択してください。登録後は日報一覧へ移動します。日報一覧ではログインユーザー名と各日報の報告者名を確認できます。
+アカウントを作成する場合は、ログイン画面でメールアドレス、パスワード、パスワード確認を入力して「新規登録」を選択してください。登録後は日報一覧へ移動します。日報一覧ではログインユーザー名と各日報の報告者名を確認できます。日報一覧は5件ずつページ切り替えできます。
+
+## フロントエンドの確認
+
+```bash
+npm --prefix frontend ci
+npm run lint
+npm run typecheck
+npm run build
+```
+
+Laravel の API テストとコード整形は Sail 経由で実行します。
 
 ## テスト
 
@@ -37,7 +47,7 @@ cp .env.example .env
 
 ## 本番環境へのデプロイ（Ver3 公開版）
 
-本番構成は Docker Compose を使用し、PHP-FPM、Nginx、MySQL を分離しています。Sail の `compose.yaml` は開発用として維持し、本番では `compose.production.yaml` を使用してください。Docker Engine と Docker Compose v2 が必要です。
+本番構成は Docker Compose を使用し、Next.js、Laravel PHP-FPM、Nginx、MySQL を分離しています。Nginx が画面を Next.js へ、`/api`・`/auth`・`/sanctum`・`/up` を Laravel へ振り分ける同一オリジン構成です。Sail の `compose.yaml` は開発用として維持し、本番では `compose.production.yaml` を使用してください。Docker Engine と Docker Compose v2 が必要です。
 
 1. 本番サーバーで設定ファイルを作成し、アプリ URL、十分に長いランダムな DB パスワード、SMTP 設定を環境に合わせて設定します。`.env.production` は秘密情報を含むため、リポジトリへ登録しないでください。
 

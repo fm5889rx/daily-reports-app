@@ -23,263 +23,121 @@ class DailyReportControllerTest extends TestCase
         $this->actingAs($this->user);
     }
 
-    public function test_index_displays_daily_reports_and_create_link(): void
-    {
-        $dailyReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
-            'title' => '作業報告',
-            'content' => 'テスト内容を記録しました。',
-            'status' => 'submitted',
-        ]);
-
-        $response = $this->get(route('daily-reports.index'));
-
-        $response->assertOk()
-            ->assertSee('作業報告')
-            ->assertSee('テスト内容を記録しました。')
-            ->assertSee('提出済')
-            ->assertSee('ログイン中: テストユーザー')
-            ->assertSee('報告者')
-            ->assertSee('テストユーザー')
-            ->assertSee(route('daily-reports.create'))
-            ->assertSee(route('daily-reports.edit', $dailyReport));
-    }
-
-    public function test_index_paginates_daily_reports_five_per_page(): void
+    public function test_index_returns_five_reports_per_page_in_descending_order(): void
     {
         foreach (range(1, 12) as $number) {
-            DailyReport::create([
-                'user_id' => $this->user->id,
-                'reported_at' => sprintf('2026-10-%02d', $number),
-                'title' => "日報 {$number}",
-                'content' => "内容 {$number}",
-                'status' => 'submitted',
-            ]);
+            $this->createReport($this->user, $number);
         }
 
-        $firstPage = $this->get(route('daily-reports.index'));
+        $firstPage = $this->getJson('/api/daily-reports');
 
         $firstPage->assertOk()
-            ->assertSee('日報 12')
-            ->assertSee('日報 8')
-            ->assertDontSee('日報 7')
-            ->assertSee('page=2', false);
-        $this->assertCount(5, $firstPage->viewData('dailyReports'));
-        $this->assertSame(12, $firstPage->viewData('dailyReports')->total());
+            ->assertJsonPath('meta.current_page', 1)
+            ->assertJsonPath('meta.per_page', 5)
+            ->assertJsonPath('meta.total', 12)
+            ->assertJsonPath('data.0.title', '日報 12')
+            ->assertJsonPath('data.4.title', '日報 8')
+            ->assertJsonPath('data.0.user.name', 'テストユーザー');
 
-        $secondPage = $this->get(route('daily-reports.index', ['page' => 2]));
+        $this->assertCount(5, $firstPage->json('data'));
+
+        $secondPage = $this->getJson('/api/daily-reports?page=2');
 
         $secondPage->assertOk()
-            ->assertSee('日報 7')
-            ->assertSee('日報 3')
-            ->assertDontSee('日報 2');
-        $this->assertCount(5, $secondPage->viewData('dailyReports'));
+            ->assertJsonPath('meta.current_page', 2)
+            ->assertJsonPath('data.0.title', '日報 7')
+            ->assertJsonPath('data.4.title', '日報 3');
+
+        $this->assertCount(5, $secondPage->json('data'));
     }
 
-    public function test_index_hides_edit_and_delete_actions_for_other_users_reports(): void
+    public function test_store_assigns_the_authenticated_user_and_validates_fields(): void
     {
-        $ownReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
-            'title' => '自分の日報',
-            'content' => '自分が作成した日報です。',
-            'status' => 'draft',
-        ]);
-        $otherUser = User::factory()->create(['name' => '別のユーザー']);
-        $otherReport = DailyReport::create([
-            'user_id' => $otherUser->id,
-            'reported_at' => '2026-10-26',
-            'title' => '他人の日報',
-            'content' => '別のユーザーが作成した日報です。',
-            'status' => 'submitted',
-        ]);
-
-        $response = $this->get(route('daily-reports.index'));
-
-        $response->assertOk()
-            ->assertSee(route('daily-reports.edit', $ownReport))
-            ->assertSee(route('daily-reports.destroy', $ownReport))
-            ->assertDontSee(route('daily-reports.edit', $otherReport))
-            ->assertDontSee(route('daily-reports.destroy', $otherReport))
-            ->assertSee('自分の日報')
-            ->assertSee('他人の日報');
-    }
-
-    public function test_create_form_has_status_options(): void
-    {
-        $response = $this->get(route('daily-reports.create'));
-
-        $response->assertOk()
-            ->assertSee('min-h-screen max-w-2xl flex-col justify-center', false)
-            ->assertSee('報告者')
-            ->assertSee('テストユーザー')
-            ->assertSee('<select', false)
-            ->assertSee('id="status"', false)
-            ->assertSee('name="status"', false)
-            ->assertSee('<option value="draft"', false)
-            ->assertSee('>下書き</option>', false)
-            ->assertSee('<option value="submitted"', false)
-            ->assertSee('>提出済</option>', false);
-    }
-
-    public function test_store_creates_daily_report_and_redirects_to_index(): void
-    {
-        $response = $this->post(route('daily-reports.store'), [
+        $this->postJson('/api/daily-reports', [
             'reported_at' => '2026-10-27',
             'title' => '作業報告',
             'content' => '本日の作業内容を報告します。',
             'status' => 'submitted',
-        ]);
-
-        $response->assertRedirect(route('daily-reports.index'))
-            ->assertSessionHas('success', '日報を作成しました。');
+            'user_id' => 999,
+        ])->assertCreated()
+            ->assertJsonPath('data.user_id', $this->user->id)
+            ->assertJsonPath('data.user.name', 'テストユーザー');
 
         $this->assertDatabaseHas('daily_reports', [
             'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
             'title' => '作業報告',
             'status' => 'submitted',
         ]);
+
+        $this->postJson('/api/daily-reports', [
+            'reported_at' => '',
+            'title' => '',
+            'content' => '',
+            'status' => 'invalid',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['reported_at', 'title', 'content', 'status']);
     }
 
-    public function test_store_returns_field_validation_errors_in_red_on_the_form(): void
+    public function test_only_the_owner_can_update_or_delete_a_report(): void
     {
-        $response = $this->from(route('daily-reports.create'))
-            ->post(route('daily-reports.store'), [
-                'reported_at' => '',
-                'title' => '',
-                'content' => '',
-                'status' => 'invalid',
-            ]);
+        $report = $this->createReport($this->user, 1);
+        $otherUser = User::factory()->create();
 
-        $response->assertRedirect(route('daily-reports.create'))
-            ->assertSessionHasErrors(['reported_at', 'title', 'content', 'status']);
-
-        $formResponse = $this->get(route('daily-reports.create'));
-        $formResponse->assertOk()
-            ->assertSee('class="error text-sm text-red-600"', false)
-            ->assertSee('報告日は必須です。')
-            ->assertSee('タイトルは必須です。')
-            ->assertSee('内容は必須です。')
-            ->assertSee('ステータスは「下書き」または「提出済」を選択してください。');
-    }
-
-    public function test_edit_form_shows_existing_values_and_status_options(): void
-    {
-        $dailyReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
-            'title' => '編集対象',
-            'content' => '編集前の内容を記録しています。',
-            'status' => 'submitted',
-        ]);
-
-        $response = $this->get(route('daily-reports.edit', $dailyReport));
-
-        $response->assertOk()
-            ->assertSee('報告者')
-            ->assertSee('テストユーザー')
-            ->assertSee('value="編集対象"', false)
-            ->assertSee('<option value="submitted" selected', false)
-            ->assertSee('>提出済</option>', false);
-    }
-
-    public function test_update_changes_daily_report(): void
-    {
-        $dailyReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-26',
-            'title' => '変更前',
-            'content' => '変更前の内容を記録しています。',
-            'status' => 'draft',
-        ]);
-
-        $response = $this->put(route('daily-reports.update', $dailyReport), [
-            'reported_at' => '2026-10-27',
-            'title' => '変更後',
-            'content' => '変更後の内容を記録しています。',
-            'status' => 'submitted',
-        ]);
-
-        $response->assertRedirect(route('daily-reports.index'))
-            ->assertSessionHas('success', '日報を更新しました。');
-
-        $this->assertDatabaseHas('daily_reports', [
-            'id' => $dailyReport->id,
-            'title' => '変更後',
-            'content' => '変更後の内容を記録しています。',
-            'status' => 'submitted',
-        ]);
-    }
-
-    public function test_only_the_owner_can_edit_update_or_delete_a_daily_report(): void
-    {
-        $dailyReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-26',
-            'title' => '所有者の日報',
-            'content' => '所有者以外は変更できません。',
-            'status' => 'draft',
-        ]);
-
-        $this->actingAs(User::factory()->create());
-
-        $this->get(route('daily-reports.edit', $dailyReport))
+        $this->actingAs($otherUser)
+            ->getJson("/api/daily-reports/{$report->id}")
             ->assertForbidden();
 
-        $this->put(route('daily-reports.update', $dailyReport), [
+        $this->putJson("/api/daily-reports/{$report->id}", [
             'reported_at' => '2026-10-27',
             'title' => '不正な変更',
             'content' => '他のユーザーによる変更です。',
             'status' => 'submitted',
         ])->assertForbidden();
 
-        $this->delete(route('daily-reports.destroy', $dailyReport))
+        $this->deleteJson("/api/daily-reports/{$report->id}")
             ->assertForbidden();
 
         $this->assertDatabaseHas('daily_reports', [
-            'id' => $dailyReport->id,
+            'id' => $report->id,
             'user_id' => $this->user->id,
-            'title' => '所有者の日報',
-            'content' => '所有者以外は変更できません。',
-            'status' => 'draft',
+            'title' => '日報 1',
         ]);
     }
 
-    public function test_destroy_deletes_daily_report(): void
+    public function test_owner_can_update_and_delete_a_report(): void
     {
-        $dailyReport = DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
-            'title' => '削除対象',
-            'content' => '削除される日報の内容です。',
-            'status' => 'draft',
-        ]);
+        $report = $this->createReport($this->user, 1);
 
-        $response = $this->delete(route('daily-reports.destroy', $dailyReport));
+        $this->putJson("/api/daily-reports/{$report->id}", [
+            'reported_at' => '2026-10-28',
+            'title' => '更新後',
+            'content' => '内容を正常に更新しました。',
+            'status' => 'submitted',
+        ])->assertOk()
+            ->assertJsonPath('data.title', '更新後');
 
-        $response->assertRedirect(route('daily-reports.index'))
-            ->assertSessionHas('success', '日報を削除しました。');
-        $this->assertDatabaseMissing('daily_reports', ['id' => $dailyReport->id]);
+        $this->deleteJson("/api/daily-reports/{$report->id}")
+            ->assertNoContent();
+
+        $this->assertDatabaseMissing('daily_reports', ['id' => $report->id]);
     }
 
-    public function test_index_displays_confirmation_for_deleting_a_daily_report(): void
+    public function test_daily_report_api_requires_authentication(): void
     {
-        DailyReport::create([
-            'user_id' => $this->user->id,
-            'reported_at' => '2026-10-27',
-            'title' => '削除対象',
-            'content' => '削除される日報の内容です。',
-            'status' => 'draft',
+        $this->app['auth']->forgetGuards();
+
+        $this->getJson('/api/daily-reports')
+            ->assertUnauthorized();
+    }
+
+    private function createReport(User $user, int $number): DailyReport
+    {
+        return DailyReport::create([
+            'user_id' => $user->id,
+            'reported_at' => sprintf('2026-10-%02d', $number),
+            'title' => "日報 {$number}",
+            'content' => 'テスト内容を記録しました。',
+            'status' => 'submitted',
         ]);
-
-        $response = $this->get(route('daily-reports.index'));
-
-        $response->assertOk()
-            ->assertSee(
-                'onsubmit="return confirm(\'この日報を削除してもよろしいですか？\')"',
-                false
-            );
     }
 }

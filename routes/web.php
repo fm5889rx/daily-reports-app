@@ -1,6 +1,5 @@
 <?php
 
-use App\Http\Controllers\DailyReportController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,8 +14,3 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::redirect('/', '/daily-reports');
-
-Route::resource('daily-reports', DailyReportController::class)
-    ->parameters(['daily-reports' => 'dailyReport'])
-    ->except(['show'])
-    ->middleware('auth');
