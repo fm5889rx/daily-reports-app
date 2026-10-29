@@ -23,8 +23,9 @@ RUN npm run build
 
 FROM php:8.5-fpm-alpine AS app
 
-RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
-    && docker-php-ext-install pdo_mysql \
+RUN apk add --no-cache libpq \
+    && apk add --no-cache --virtual .build-deps $PHPIZE_DEPS postgresql-dev \
+    && docker-php-ext-install pdo_mysql pdo_pgsql \
     && apk del .build-deps
 
 WORKDIR /var/www/html
@@ -63,3 +64,21 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=app /var/www/html/public /var/www/html/public
 
 EXPOSE 8080
+
+FROM app AS render
+
+USER root
+
+RUN apk add --no-cache nginx nodejs su-exec \
+    && mkdir -p /run/nginx /var/lib/nginx/tmp/client_body \
+    && chown -R nginx:nginx /var/lib/nginx
+
+COPY --from=assets --chown=www-data:www-data /var/www/html/frontend/.next/standalone /var/www/html/frontend
+COPY --from=assets --chown=www-data:www-data /var/www/html/frontend/.next/static /var/www/html/frontend/.next/static
+COPY --from=app /var/www/html/public /var/www/html/frontend/public
+COPY docker/render-nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/render-entrypoint.sh /usr/local/bin/render-entrypoint
+
+EXPOSE 10000
+
+ENTRYPOINT ["sh", "/usr/local/bin/render-entrypoint"]

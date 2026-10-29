@@ -45,6 +45,12 @@ Laravel の API テストとコード整形は Sail 経由で実行します。
 ./vendor/bin/sail php vendor/bin/phpunit
 ```
 
+## Render.com へのデプロイ（無料プラン）
+
+リポジトリを GitHub などに push し、Render の Blueprint としてルートの `render.yaml` を選択してデプロイします。Blueprint は Dockerfile から Laravel と Next.js を含む Web Service を作成し、無料 PostgreSQL の接続 URL とアプリケーションキーを設定します。起動時に `php artisan migrate --force` が実行されます。
+
+Render の無料 Web Service は15分間アクセスがないとスリープします。無料 PostgreSQL は作成から30日で期限切れとなり、容量は1 GBで、バックアップにも対応しません。期限切れ後14日以内に有料プランへ変更しない場合はデータが削除されるため、無料枠は検証・学習用途向けです。詳細は [Render の無料インスタンス制限](https://render.com/docs/free) を確認してください。
+
 ## 本番環境へのデプロイ（Ver3 公開版）
 
 本番構成は Docker Compose を使用し、Next.js、Laravel PHP-FPM、Nginx、MySQL を分離しています。Nginx が画面を Next.js へ、`/api`・`/auth`・`/sanctum`・`/up` を Laravel へ振り分ける同一オリジン構成です。Sail の `compose.yaml` は開発用として維持し、本番では `compose.production.yaml` を使用してください。Docker Engine と Docker Compose v2 が必要です。
