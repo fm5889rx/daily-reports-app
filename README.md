@@ -51,6 +51,10 @@ Laravel の API テストとコード整形は Sail 経由で実行します。
 
 Render の無料 Web Service は15分間アクセスがないとスリープします。無料 PostgreSQL は作成から30日で期限切れとなり、容量は1 GBで、バックアップにも対応しません。期限切れ後14日以内に有料プランへ変更しない場合はデータが削除されるため、無料枠は検証・学習用途向けです。詳細は [Render の無料インスタンス制限](https://render.com/docs/free) を確認してください。
 
+## Vercel へのフロントエンドデプロイ
+
+Vercel で GitHub のこのリポジトリを選択し、Root Directory を `frontend` にして Next.js プロジェクトを作成します。Render の Web Service URL を `LARAVEL_APP_URL` 環境変数に設定してからデプロイしてください。この値を使って `/api`・`/auth`・`/sanctum` のリクエストを Laravel へ中継します。デプロイ後は、Render の Web Service に `SANCTUM_STATEFUL_DOMAINS` として Vercel の本番ホスト名を設定してください。これにより、同一オリジン経由の Sanctum セッション認証を使用できます。
+
 ## 本番環境へのデプロイ（Ver3 公開版）
 
 本番構成は Docker Compose を使用し、Next.js、Laravel PHP-FPM、Nginx、MySQL を分離しています。Nginx が画面を Next.js へ、`/api`・`/auth`・`/sanctum`・`/up` を Laravel へ振り分ける同一オリジン構成です。Sail の `compose.yaml` は開発用として維持し、本番では `compose.production.yaml` を使用してください。Docker Engine と Docker Compose v2 が必要です。

@@ -7,7 +7,7 @@ export DB_CONNECTION="${DB_CONNECTION:-pgsql}"
 export SESSION_DRIVER="${SESSION_DRIVER:-file}"
 export SESSION_SECURE_COOKIE="${SESSION_SECURE_COOKIE:-true}"
 export APP_URL="${APP_URL:-https://${RENDER_EXTERNAL_HOSTNAME:-localhost}}"
-export SANCTUM_STATEFUL_DOMAINS="${RENDER_EXTERNAL_HOSTNAME:-localhost}"
+export SANCTUM_STATEFUL_DOMAINS="${SANCTUM_STATEFUL_DOMAINS:-${RENDER_EXTERNAL_HOSTNAME:-localhost}}"
 
 if [ "$APP_ENV" = "production" ]; then
     if [ "$APP_DEBUG" != "false" ] && [ "$APP_DEBUG" != "0" ]; then
