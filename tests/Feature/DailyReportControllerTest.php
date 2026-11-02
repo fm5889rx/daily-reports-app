@@ -130,6 +130,15 @@ class DailyReportControllerTest extends TestCase
             ->assertUnauthorized();
     }
 
+    public function test_unauthenticated_api_requests_without_json_accept_header_return_json(): void
+    {
+        $this->app['auth']->forgetGuards();
+
+        $this->get('/api/daily-reports', ['Accept' => '*/*'])
+            ->assertUnauthorized()
+            ->assertJson(['message' => 'Unauthenticated.']);
+    }
+
     private function createReport(User $user, int $number): DailyReport
     {
         return DailyReport::create([

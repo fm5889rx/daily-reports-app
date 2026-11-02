@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Foundation\Application;
+use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
@@ -13,7 +14,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->redirectGuestsTo(
-            fn (Request $request): ?string => $request->expectsJson() ? null : route('login')
+            fn (Request $request): ?string => $request->expectsJson() || $request->is('api/*')
+                ? null
+                : route('login')
         );
         $middleware->redirectUsersTo('/daily-reports');
         $middleware->trimStrings(except: [
@@ -30,5 +33,9 @@ return Application::configure(basePath: dirname(__DIR__))
         );
         $middleware->throttleApi('api');
     })
-    ->withExceptions()
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->shouldRenderJsonWhen(
+            fn (Request $request): bool => $request->is('api/*') || $request->expectsJson()
+        );
+    })
     ->create();
